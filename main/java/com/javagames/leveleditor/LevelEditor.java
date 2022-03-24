@@ -4,6 +4,7 @@ import com.javagames.leveleditor.dialogs.RequestSizeDialog;
 import com.javagames.leveleditor.model.ImageSize;
 import com.javagames.leveleditor.model.LevelData;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -12,9 +13,11 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 public class LevelEditor extends JPanel {
     private static final String APP_NAME = "JavaGames Level Editor";
+    private static final String PALETTE_BUTTON_PATH = "images/palette.png";
     private static final int DEFAULT_TILE_WIDTH = 16;
     private static final int DEFAULT_TILE_HEIGHT = 16;
     private static final int DEFAULT_CANVAS_TILES_X = 64;
@@ -87,6 +90,16 @@ public class LevelEditor extends JPanel {
         scaleLabel = new JLabel();
         setScaleText();
 
+        try {
+            JButton paletteButton = new JButton(new ImageIcon(loadPaletteButtonImage()));
+            paletteButton.addActionListener(e -> showPalette());
+            JToolBar toolBar = new JToolBar();
+            toolBar.add(paletteButton);
+            this.add(toolBar, BorderLayout.NORTH);
+        } catch (IOException e) {
+            System.out.println("Unable to load palette icon for toolbar: " + e.getMessage());
+        }
+
         JPanel statusBar = new JPanel();
         statusBar.setLayout(new BoxLayout(statusBar, BoxLayout.X_AXIS));    // defaults left to right layout along X
         statusBar.setBorder(new BevelBorder(BevelBorder.LOWERED));
@@ -115,6 +128,19 @@ public class LevelEditor extends JPanel {
         frame.setPreferredSize(new Dimension(1200, 700));
         frame.pack();
         frame.setLocationRelativeTo(null);  // must come after set-size and pack
+    }
+
+    private Image loadPaletteButtonImage() throws IOException {
+        try (InputStream ios = this.getClass().getClassLoader().getResourceAsStream(PALETTE_BUTTON_PATH)) {
+            if (ios == null) {
+                throw new IOException("Unable to open palette button icon image data stream.");
+            }
+            BufferedImage image = ImageIO.read(ios);
+            if (image == null) {
+                throw new IOException("Unable to read palette button icon image.");
+            }
+            return image;
+        }
     }
 
     // ------------------ MENU COMMAND HANDLERS ------------------
@@ -407,11 +433,9 @@ public class LevelEditor extends JPanel {
         }
     }
 
-    private void showPalette(boolean show) {
-        // TODO: Currently, the only way to reopen the palette once closed is to recreate it from Open
-        //      Add a button to show/hide the palette. Call this method.
+    private void showPalette() {
         if (paletteDialog != null) {
-            paletteDialog.setVisible(show);
+            paletteDialog.setVisible(true);
         } else {
             cmdOpenPalette();
         }
