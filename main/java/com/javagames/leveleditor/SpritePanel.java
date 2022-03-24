@@ -1,7 +1,6 @@
 package com.javagames.leveleditor;
 
 import com.javagames.leveleditor.model.ImageSize;
-import com.javagames.leveleditor.model.LevelData;
 import com.javagames.leveleditor.model.Tile;
 
 import javax.swing.*;
@@ -9,7 +8,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
-import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
@@ -18,30 +16,27 @@ public class SpritePanel extends JPanel {
             BasicStroke.JOIN_MITER, 10.0f, new float[] {1.0f, 2.0f}, 0.0f);
     private static final Color GRID_COLOR = new Color(0, 0, 0, 0x7f);   // 50% transparent
 
-    private final JFrame frame;
     private final LevelCanvas canvas;
     private final BufferedImage backgroundTile;
+    private final BufferedImage image;
+    private final File file;
 
-    private File file;
-    private BufferedImage image;
     private double scale;
+    private Dimension windowSize;
     private int imageWidthPixelsScaled;
     private int imageHeightPixelsScaled;
-    private Dimension dimension;
     private int tileWidthPixelsScaled;
     private int tileHeightPixelsScaled;
     private int imageWidthTiles;
     private Tile[] tiles;
-    private Tile currentTile;
     private Point curHoverPoint;
 
-    public SpritePanel(JFrame frame, LevelCanvas canvas) {
-        this.frame = frame;
+    public SpritePanel(File file, BufferedImage image, ImageSize tileSize, LevelCanvas canvas) {
+        this.file = file;
+        this.image = image;
         this.canvas = canvas;
-        this.frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        this.frame.setContentPane(this);
-        this.frame.setResizable(false);
         this.backgroundTile = makeScaledBackgroundTile();
+        setTileSize(tileSize);
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -85,14 +80,9 @@ public class SpritePanel extends JPanel {
         return bimage;
     }
 
-    public static SpritePanel createPanel(LevelCanvas editor) {
-        JFrame frame = new JFrame();
-        return new SpritePanel(frame, editor);
-    }
-
     @Override
     public Dimension getPreferredSize() {
-        return dimension;
+        return windowSize;
     }
 
     @Override
@@ -154,7 +144,7 @@ public class SpritePanel extends JPanel {
         int imageHeightTiles = image.getHeight() / height;
         this.imageWidthPixelsScaled = imageWidthTiles * tileWidthPixelsScaled;
         this.imageHeightPixelsScaled = imageHeightTiles * tileHeightPixelsScaled;
-        this.dimension = new Dimension(imageWidthPixelsScaled, imageHeightPixelsScaled);
+        this.windowSize = new Dimension(imageWidthPixelsScaled, imageHeightPixelsScaled);
         this.tiles = new Tile[imageWidthTiles * imageHeightTiles];
         for (int y = 0; y < imageHeightTiles; y++) {
             for (int x = 0; x < imageWidthTiles; x++) {
@@ -162,34 +152,17 @@ public class SpritePanel extends JPanel {
                 this.tiles[index] = Tile.of(index, image.getSubimage(x * width, y * height, width, height));
             }
         }
-        frame.pack();
-    }
-
-    public void resetFromLevelData(LevelData levelData) {
-        file = levelData.getPaletteFile();
-        image = levelData.getPaletteImage();
-        setTileSize(levelData.getTileSize());
-        frame.setTitle(file.getName());
     }
 
     public BufferedImage getImageAt(int index) {
         return tiles[index].getImage();
     }
 
-    public void setFrameVisible(boolean show) {
-        frame.setVisible(show);
-    }
-
-    public void setFrameLocationRelativeTo(JFrame otherFrame) {
-        frame.setLocationRelativeTo(otherFrame);
-    }
-
     public void onMouseClicked(MouseEvent e) {
         if (e.getButton() == MouseEvent.BUTTON1) {
             Point p = e.getPoint();
             int index = (p.x / tileWidthPixelsScaled) + (p.y / tileHeightPixelsScaled) * imageWidthTiles;
-            currentTile = tiles[index];
-            canvas.onPaletteTileSelected(currentTile);
+            canvas.onPaletteTileSelected(tiles[index]);
         }
     }
 
@@ -228,9 +201,5 @@ public class SpritePanel extends JPanel {
             int y = p.y / h * h;   // truncate to start of last ygrid position
             g2d.fillRect(x, y, w, h);
         }
-    }
-
-    public void close() {
-        frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
     }
 }

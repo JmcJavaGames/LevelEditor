@@ -9,6 +9,7 @@ import javax.swing.border.BevelBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
@@ -29,8 +30,9 @@ public class LevelEditor extends JPanel {
     private final JLabel levelSizeLabel;
     private final JLabel layerInfoLabel;
     private final JLabel scaleLabel;
-    private final SpritePanel palette;
 
+    private JDialog paletteDialog;
+    private SpritePanel palette;
     private LevelData levelData;
     private boolean modified;
 
@@ -94,8 +96,6 @@ public class LevelEditor extends JPanel {
         statusBar.add(scaleLabel);
         this.add(statusBar, BorderLayout.SOUTH);
 
-        palette = SpritePanel.createPanel(canvas);
-
         setTitle();
 
         frame.setLayout(new BorderLayout());
@@ -132,12 +132,10 @@ public class LevelEditor extends JPanel {
         if (paletteFile != null) {
             try {
                 levelData.setPaletteFile(paletteFile);  // last possible throw point
-                palette.setFrameVisible(false);
-                palette.resetFromLevelData(levelData);
+                closePalette();
+                createPalette(frame, levelData.getPaletteFile(),
+                        levelData.getPaletteImage(), levelData.getTileSize(), canvas);
                 canvas.onLevelLoaded(levelData, palette);
-                palette.setFrameLocationRelativeTo(this.frame);
-                palette.invalidate();
-                palette.setFrameVisible(true);
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(frame, e.getMessage(),
                         "Error reading palette file", JOptionPane.ERROR_MESSAGE);
@@ -161,11 +159,7 @@ public class LevelEditor extends JPanel {
             ImageSize tileSize = setTileSizeDialog();
             if (tileSize != null) {
                 levelData.setTileSize(tileSize);
-                if (palette != null) {
-                    palette.setTileSize(levelData.getTileSize());
-                    palette.invalidate();
-                    palette.repaint();
-                }
+                setPaletteTileSize(levelData.getTileSize());
                 clearCanvas();
                 setTileSizeText();
             }
@@ -352,12 +346,10 @@ public class LevelEditor extends JPanel {
     private void openLevel(File levelFile) {
         try {
             levelData = LevelData.forLoadingALevel(levelFile);
-            palette.setFrameVisible(false);
-            palette.resetFromLevelData(levelData);
+            closePalette();
+            createPalette(frame, levelData.getPaletteFile(),
+                    levelData.getPaletteImage(), levelData.getTileSize(), canvas);
             canvas.onLevelLoaded(levelData, palette);
-            palette.setFrameLocationRelativeTo(this.frame);
-            palette.invalidate();
-            palette.setFrameVisible(true);
             setTitle();
             setLevelSizeText();
             setTileSizeText();
@@ -395,9 +387,39 @@ public class LevelEditor extends JPanel {
 
     // --------------- Palette Management
 
+    private void createPalette(JFrame frame, File file, BufferedImage image,
+            ImageSize tileSize, LevelCanvas canvas) {
+        palette = new SpritePanel(file, image, tileSize, canvas);
+        paletteDialog = new JDialog(frame, file.toString());
+        paletteDialog.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+        paletteDialog.setResizable(false);
+        paletteDialog.add(palette);
+        paletteDialog.pack();
+        paletteDialog.setVisible(true);
+    }
+
+    private void setPaletteTileSize(ImageSize tileSize) {
+        if (palette != null) {
+            palette.setTileSize(tileSize);
+            paletteDialog.pack();
+            palette.invalidate();
+            palette.repaint();
+        }
+    }
+
+    private void showPalette(boolean show) {
+        // TODO: Currently, the only way to reopen the palette once closed is to recreate it from Open
+        //      Add a button to show/hide the palette. Call this method.
+        if (paletteDialog != null) {
+            paletteDialog.setVisible(show);
+        } else {
+            cmdOpenPalette();
+        }
+    }
+
     private void closePalette() {
         if (palette != null) {
-            palette.close();
+            paletteDialog.dispatchEvent(new WindowEvent(paletteDialog, WindowEvent.WINDOW_CLOSING));
         }
     }
 
@@ -453,10 +475,7 @@ public class LevelEditor extends JPanel {
     }
 
     private void onFrameClosing() {
-        saveLevelIfNeededAndThen(() -> {
-            closePalette();
-            frame.dispose();
-        });
+        saveLevelIfNeededAndThen(frame::dispose);
     }
 
     private void setModified(boolean modified) {
